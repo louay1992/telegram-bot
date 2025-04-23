@@ -9,4 +9,4 @@ services:
     autoDeploy: true
     envVars:
       - key: BOT_TOKEN
-        value: "ضع هنا توكن البوت"
+        value: "7406580104:AAGG2JQeeNfsmcGVMCm7hxitIK-qm2yekVg"
