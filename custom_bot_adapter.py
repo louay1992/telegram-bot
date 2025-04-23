@@ -13,6 +13,9 @@ import asyncio
 import atexit
 from datetime import datetime
 
+# ==== تأكد من أن مجلد هذا الملف في مسار الاستيراد حتى يتمكن import bot من العمل ====
+sys.path.insert(0, os.path.dirname(__file__))
+
 # ==== إعدادات السجلات ====
 logging.basicConfig(
     level=logging.INFO,
@@ -27,13 +30,11 @@ _stop_event = threading.Event()
 # مسار ونافذة تحديث نبضات القلب
 HEARTBEAT_FILE = os.environ.get("BOT_HEARTBEAT_FILE", "bot_heartbeat.txt")
 HEARTBEAT_INTERVAL = int(os.environ.get("BOT_HEARTBEAT_INTERVAL", 15))
-DEFAULT_TOKEN = "7406580104:AAGG2JQeeNfsmcGVMCm7hxitIK-qm2yekVg"
 
 
 def update_heartbeat():
     """تحديث ملف نبضات القلب بأحدث توقيت UTC"""
     try:
-        # ضمان وجود المجلد
         directory = os.path.dirname(HEARTBEAT_FILE) or '.'
         os.makedirs(directory, exist_ok=True)
         with open(HEARTBEAT_FILE, "w") as f:
@@ -44,15 +45,11 @@ def update_heartbeat():
 
 def _run_bot():
     """تشغيل البوت داخل حلقة asyncio جديدة في خيط منفصل"""
-    # إنشاء حلقة جديدة وربطها بالخيط
+    # 1) إنشاء حلقة جديدة وربطها بالخيط
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
-    # تعطيل معالجات الإشارات لتجنب set_wakeup_fd
+    # تعطيل معالجات الإشارات لتجنب set_wakeup_fd في ثريد غير رئيسي
     loop.add_signal_handler = lambda *args, **kwargs: None
-
-    # ضبط التوكن قبل استيراد bot.py
-    token = os.environ.get("TELEGRAM_BOT_TOKEN", DEFAULT_TOKEN)
-    os.environ["TELEGRAM_BOT_TOKEN"] = token
 
     logger.info("🔄 بدء تشغيل البوت في الخلفية")
     update_heartbeat()
@@ -60,24 +57,26 @@ def _run_bot():
     try:
         import bot  # استيراد ملف البوت الرئيسي
 
-        # إذا كانت الدالة build_application موجودة، نستخدمها
+        # 2) نَبْني الـ Application (بدون run_polling)
         if hasattr(bot, "build_application"):
             application = bot.build_application()
-            # تشغيل polling ضمن الحلقة
-            loop.create_task(application.run_polling())
         else:
-            # بديل: استدعاء start_bot في Executor
-            loop.run_in_executor(None, bot.start_bot)
+            # إذا لم تعرف build_application()، نفترض أن main() يبني التطبيق
+            application = bot.main()
 
-        # جدولة نبضات القلب بشكل دوري
+        # 3) نُشغّل الـ polling داخل حلقة الـ asyncio
+        loop.create_task(application.run_polling())
+
+        # 4) نُدشّن جدولة نبضات القلب في ثريد منفصل
         def heartbeat_loop():
             while not _stop_event.wait(HEARTBEAT_INTERVAL):
                 update_heartbeat()
 
         threading.Thread(target=heartbeat_loop, daemon=True).start()
 
-        # تشغيل الحلقة إلى الأبد
+        # 5) نبدأ الحلقة إلى الأبد
         loop.run_forever()
+
     except Exception:
         logger.exception("❌ خطأ أثناء تشغيل البوت")
     finally:
@@ -97,6 +96,7 @@ def start_bot_thread():
     _stop_event.clear()
     bot_thread = threading.Thread(target=_run_bot, name="BotThread", daemon=True)
     bot_thread.start()
+    # ننتظر لحظة بسيطة ليتأكد أنه بدأ
     time.sleep(2)
 
     if not is_bot_running():
@@ -104,7 +104,7 @@ def start_bot_thread():
         return False
 
     atexit.register(stop_bot_thread)
-    logger.info("✅ تم بدء بوت التيليجرام في خيط خلفي")
+    logger.info("✅ تم بدء بوت التيليجرام في ثريد خلفي")
     return True
 
 
