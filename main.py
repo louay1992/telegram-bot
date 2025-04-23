@@ -341,6 +341,32 @@ def api_status():
         "notification_count": get_notification_count()
     })
 
+
+@app.route('/api/ping')
+def ping():
+    """نقطة تحقق بسيطة لاختبار جاهزية السيرفر"""
+    return jsonify({
+        "status": "ok",
+        "service": "telegram-bot",
+        "timestamp": datetime.utcnow().isoformat() + "Z"
+    }), 200
+
+@app.route('/api/status')
+def api_status():
+    """واجهة برمجة التطبيقات لعرض حالة النظام"""
+    # التحقق من حالة البوت
+    bot_running = is_bot_running()
+    system_info = get_system_info()
+    
+    return jsonify({
+        "status": "ok" if bot_running else "error",
+        "bot_running": bot_running,
+        "last_heartbeat": get_heartbeat_status(),
+        "uptime": get_uptime(),
+        "system_info": system_info,
+        "notification_count": get_notification_count()
+    })
+
 @app.route('/media/<path:filename>')
 def serve_media(filename):
     """تقديم ملفات الوسائط"""
