@@ -27,7 +27,7 @@ from search_handlers import get_search_handlers, AWAITING_SEARCH_QUERY, received
 from stats_handlers import get_stats_handlers
 from delivery_handlers import get_delivery_handlers
 from search_history_handlers import get_search_history_handler
-from filter_handlers import get_filter_handle
+from filter_handlers import get_filter_handler
 from advanced_search_handlers import get_advanced_search_handler
 from permissions_handlers import get_permissions_handlers
 from theme_handlers import get_theme_handlers
