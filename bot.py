@@ -1726,20 +1726,31 @@ def main():
     logging.info("بدء تشغيل البوت...")
  # … (كل الكود الأصلي لديك من التعاريف، handlers، جدولة الـ jobs، heartbeat، إلخ) …
 
-def main():
-    """بناء الـ Application وإرجاعه جاهزًا للتشغيل، من دون إطلاق أي Polling."""
-    # === هنا كل ما كان في دالتك الأصلية main: بناء application، إضافة handlers، job_queue، heartbeat_updater، الخ. ===
+# def main():
+#     """بناء الـ Application وإرجاعه جاهزًا للتشغيل، من دون إطلاق أي Polling."""
+#     # === هنا كل ما كان في دالتك الأصلية main: بناء application، إضافة handlers، job_queue، heartbeat_updater، الخ. ===
+#     return application
+
+
+# def start_bot():
+#     """تشغيل البوت للمُنتَج (بواسطة custom_bot_adapter أو مباشرة)."""
+    
+#     app.run_polling()
+#     app = main()
+
+def build_application() -> Application:
+    """ينشئ التطبيق (handlers, jobs, إلخ) ويعيده جاهزاً للتشغيل."""
+    # هنا ضعه كل ما في دالتك الأصلية main قبل run_polling
+    application = Application.builder().token(TOKEN).build()
+    # … أضف جميع handlers, job_queue, إلخ …
     return application
 
 
-def start_bot():
-    """تشغيل البوت للمُنتَج (بواسطة custom_bot_adapter أو مباشرة)."""
-    
+if name == "main":
+    app = build_application()
     app.run_polling()
-    app = main()
 
-
-if __name__ == '__main__':
-    # عند تشغيل bot.py مباشرةً
-    start_bot()
+# if __name__ == '__main__':
+#     # عند تشغيل bot.py مباشرةً
+#     start_bot()
 
