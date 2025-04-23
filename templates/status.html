@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <title>حالة البوت</title>
+    <style>
+        body { font-family: Arial; direction: rtl; padding: 30px; }
+        .status-ok { color: green; }
+        .status-error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>البوت: <span class="{{ status_class }}">{{ 'يعمل ✅' if bot_status else 'متوقف ❌' }}</span></h1>
+    <p>آخر نبضة: {{ last_heartbeat }}</p>
+    <p>مدة التشغيل: {{ uptime }}</p>
+    <p>عدد الإشعارات: {{ notification_count }}</p>
+    <p>عدد الزيارات: {{ visit_count }}</p>
+</body>
+</html>
+Add status.html template
