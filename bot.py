@@ -27,7 +27,7 @@ from search_handlers import get_search_handlers, AWAITING_SEARCH_QUERY, received
 from stats_handlers import get_stats_handlers
 from delivery_handlers import get_delivery_handlers
 from search_history_handlers import get_search_history_handler
-from filter_handlers import get_filter_handlers
+from filter_handlers import get_filter_handle
 from advanced_search_handlers import get_advanced_search_handler
 from permissions_handlers import get_permissions_handlers
 from theme_handlers import get_theme_handlers
@@ -1724,14 +1724,21 @@ def main():
     
     # Start the Bot
     logging.info("بدء تشغيل البوت...")
+ # … (كل الكود الأصلي لديك من التعاريف، handlers، جدولة الـ jobs، heartbeat، إلخ) …
+
+def main():
+    """بناء الـ Application وإرجاعه جاهزًا للتشغيل، من دون إطلاق أي Polling."""
+    # === هنا كل ما كان في دالتك الأصلية main: بناء application، إضافة handlers، job_queue، heartbeat_updater، الخ. ===
     return application
 
+
 def start_bot():
-    """مستخدَم من custom_bot_adapter"""
+    """تشغيل البوت للمُنتَج (بواسطة custom_bot_adapter أو مباشرة)."""
     app = main()
     app.run_polling()
 
+
 if __name__ == '__main__':
-    # لو شغّلت bot.py مباشرة
-    app = main()
-    app.run_polling()
+    # عند تشغيل bot.py مباشرةً
+    start_bot()
+
