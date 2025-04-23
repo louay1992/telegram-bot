@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+import os
+TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 import logging
 import os
 import asyncio
