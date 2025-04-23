@@ -1724,13 +1724,14 @@ def main():
     
     # Start the Bot
     logging.info("بدء تشغيل البوت...")
-    application.run_polling()
+    return application
 
 def start_bot():
-    """وظيفة مستخدمة من قبل custom_bot_adapter وstart_bot.py"""
-    main()
+    """مستخدَم من custom_bot_adapter"""
+    app = main()
+    app.run_polling()
 
 if __name__ == '__main__':
-    main()
-
-
+    # لو شغّلت bot.py مباشرة
+    app = main()
+    app.run_polling()
