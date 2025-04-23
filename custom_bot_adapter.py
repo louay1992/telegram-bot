@@ -3,7 +3,9 @@
 """
 نظام التكامل بين البوت وخادم الويب في نظام واحد
 """
-
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import os
 import sys
 import logging
