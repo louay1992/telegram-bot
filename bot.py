@@ -1734,8 +1734,9 @@ def main():
 
 def start_bot():
     """تشغيل البوت للمُنتَج (بواسطة custom_bot_adapter أو مباشرة)."""
-    app = main()
+    
     app.run_polling()
+    app = main()
 
 
 if __name__ == '__main__':
