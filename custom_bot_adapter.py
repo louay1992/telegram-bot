@@ -1,4 +1,5 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
 نظام التكامل بين البوت وخادم الويب في نظام واحد
 """
@@ -8,163 +9,154 @@ import sys
 import logging
 import threading
 import time
-from datetime import datetime
+import asyncio
 import atexit
+from datetime import datetime
 
-# إعداد السجلات
+# ==== إعدادات السجلات ====
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger("bot_adapter")
 
-# المتغيرات العامة
+# ==== الإعدادات العامة ====
 bot_thread = None
-bot_running = False
-bot_start_time = None
+_stop_event = threading.Event()
+
+# مسار ونافذة تحديث نبضات القلب
+HEARTBEAT_FILE = os.environ.get("BOT_HEARTBEAT_FILE", "bot_heartbeat.txt")
+HEARTBEAT_INTERVAL = int(os.environ.get("BOT_HEARTBEAT_INTERVAL", 15))
 DEFAULT_TOKEN = "7406580104:AAGG2JQeeNfsmcGVMCm7hxitIK-qm2yekVg"
 
-def update_heartbeat():
-    """تحديث ملف نبضات القلب للبوت"""
-    try:
-        with open("bot_heartbeat.txt", "w") as f:
-            f.write(datetime.now().isoformat())
-    except Exception as e:
-        logger.error(f"خطأ في تحديث ملف نبضات القلب: {e}")
 
-def get_token():
-    """الحصول على توكن البوت"""
-    return os.environ.get("TELEGRAM_BOT_TOKEN", DEFAULT_TOKEN)
+def update_heartbeat():
+    """تحديث ملف نبضات القلب بأحدث توقيت UTC"""
+    try:
+        # ضمان وجود المجلد
+        directory = os.path.dirname(HEARTBEAT_FILE) or '.'
+        os.makedirs(directory, exist_ok=True)
+        with open(HEARTBEAT_FILE, "w") as f:
+            f.write(datetime.utcnow().isoformat())
+    except Exception:
+        logger.exception("خطأ في تحديث ملف نبضات القلب")
+
 
 def _run_bot():
-    """تشغيل البوت في الخلفية"""
-    global bot_running, bot_start_time
+    """تشغيل البوت داخل حلقة asyncio جديدة في خيط منفصل"""
+    # إنشاء حلقة جديدة وربطها بالخيط
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    # تعطيل معالجات الإشارات لتجنب set_wakeup_fd
+    loop.add_signal_handler = lambda *args, **kwargs: None
 
-    # 1. إنشاء حلقة asyncio جديدة وربطها بخيط الخلفية
-    try:
-        import asyncio
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        # تعطيل تسجيل معالجات الإشارات كي لا يحاول set_wakeup_fd في خيط فرعي
-        setattr(loop, 'add_signal_handler', lambda *args, **kwargs: None)
-        logger.info("🛠️ تم إنشاء وربط حلقة asyncio جديدة لخيط الخلفية")
-    except Exception as e:
-        logger.warning(f"⚠️ تعذّر إعداد حلقة asyncio للخلفية: {e}")
+    # ضبط التوكن قبل استيراد bot.py
+    token = os.environ.get("TELEGRAM_BOT_TOKEN", DEFAULT_TOKEN)
+    os.environ["TELEGRAM_BOT_TOKEN"] = token
 
-    logger.info("🔄 بدء تشغيل البوت من الخيط")
-    bot_start_time = datetime.now()
-    bot_running = True
+    logger.info("🔄 بدء تشغيل البوت في الخلفية")
     update_heartbeat()
 
     try:
-        # 2. استيراد ملف البوت وتشغيله
-        import bot
-        logger.info("🛠️ استيراد وتشغيل ملف bot.py")
-        bot.start_bot()
+        import bot  # استيراد ملف البوت الرئيسي
 
-        # 3. جدولة تحديث نبضات القلب كل 15 ثانية
-        def heartbeat_updater():
-            while bot_running:
+        # إذا كانت الدالة build_application موجودة، نستخدمها
+        if hasattr(bot, "build_application"):
+            application = bot.build_application()
+            # تشغيل polling ضمن الحلقة
+            loop.create_task(application.run_polling())
+        else:
+            # بديل: استدعاء start_bot في Executor
+            loop.run_in_executor(None, bot.start_bot)
+
+        # جدولة نبضات القلب بشكل دوري
+        def heartbeat_loop():
+            while not _stop_event.wait(HEARTBEAT_INTERVAL):
                 update_heartbeat()
-                time.sleep(15)
 
-        hb_thread = threading.Thread(target=heartbeat_updater)
-        hb_thread.daemon = True
-        hb_thread.start()
+        threading.Thread(target=heartbeat_loop, daemon=True).start()
 
-        logger.info("✅ البوت يعمل الآن في الخلفية")
-    except Exception as e:
-        logger.error(f"❌ خطأ أثناء تشغيل البوت: {e}")
-        import traceback
-        logger.error(traceback.format_exc())
-        bot_running = False
+        # تشغيل الحلقة إلى الأبد
+        loop.run_forever()
+    except Exception:
+        logger.exception("❌ خطأ أثناء تشغيل البوت")
+    finally:
+        try:
+            loop.stop()
+        except Exception:
+            pass
+
 
 def start_bot_thread():
-    """بدء تشغيل خيط البوت"""
-    global bot_thread, bot_running
-
+    """بدء خيط تشغيل البوت إذا لم يكن قيد التشغيل"""
+    global bot_thread
     if bot_thread and bot_thread.is_alive():
         logger.info("البوت يعمل بالفعل")
         return True
 
-    try:
-        bot_thread = threading.Thread(target=_run_bot, name="BotThread")
-        bot_thread.daemon = True
-        bot_thread.start()
+    _stop_event.clear()
+    bot_thread = threading.Thread(target=_run_bot, name="BotThread", daemon=True)
+    bot_thread.start()
+    time.sleep(2)
 
-        # ننتظر لحظة ليتأكد الخيط أنّه بدأ
-        time.sleep(2)
-
-        if is_bot_running():
-            logger.info("✅ تم بدء تشغيل خيط البوت بنجاح")
-            atexit.register(stop_bot_thread)
-            return True
-        else:
-            logger.error("❌ فشل في بدء تشغيل البوت")
-            return False
-    except Exception as e:
-        logger.error(f"❌ خطأ في بدء تشغيل خيط البوت: {e}")
+    if not is_bot_running():
+        logger.error("❌ فشل في بدء بوت التيليجرام")
         return False
+
+    atexit.register(stop_bot_thread)
+    logger.info("✅ تم بدء بوت التيليجرام في خيط خلفي")
+    return True
+
 
 def stop_bot_thread():
-    """إيقاف خيط البوت"""
-    global bot_thread, bot_running
+    """إيقاف خيط البوت وإغلاق الحلقة"""
+    _stop_event.set()
+    if bot_thread:
+        bot_thread.join(timeout=2)
+    logger.info("✅ تم إيقاف بوت التيليجرام")
+    return True
 
-    if bot_thread and bot_thread.is_alive():
-        logger.info("جاري إيقاف البوت...")
-        bot_running = False
-        time.sleep(2)
-        logger.info("تم إيقاف البوت")
-        return True
-    else:
-        logger.info("البوت غير متاح للإيقاف")
-        return False
 
 def is_bot_running():
-    """التحقق من حالة البوت عبر حالة الخيط وملف النبضات"""
-    global bot_running, bot_thread
-
+    """التحقق من حالة البوت عبر الخيط وملف نبضات القلب"""
     if bot_thread and bot_thread.is_alive():
         return True
 
     try:
-        if not os.path.exists("bot_heartbeat.txt"):
-            return False
-        ts = open("bot_heartbeat.txt").read().strip()
-        try:
-            last = datetime.fromisoformat(ts)
-        except ValueError:
-            last = datetime.fromtimestamp(float(ts))
-        diff = (datetime.now() - last).total_seconds()
-        logger.info(f"الفرق منذ آخر نبضة قلب: {diff:.2f} ثانية")
-        return diff < 180
-    except Exception as e:
-        logger.error(f"خطأ في التحقق من حالة البوت: {e}")
+        with open(HEARTBEAT_FILE) as f:
+            ts = f.read().strip()
+        last = datetime.fromisoformat(ts)
+        delta = (datetime.utcnow() - last).total_seconds()
+        logger.debug(f"الفرق منذ آخر نبضة قلب: {delta:.2f} ثوانٍ")
+        return delta < HEARTBEAT_INTERVAL * 3
+    except Exception:
         return False
 
+
 def get_uptime():
-    """الحصول على مدة تشغيل البوت"""
-    if not bot_start_time:
+    """إرجاع مدة تشغيل البوت بناءً على آخر نبضة قلب"""
+    try:
+        with open(HEARTBEAT_FILE) as f:
+            ts = f.read().strip()
+        last = datetime.fromisoformat(ts)
+        uptime = datetime.utcnow() - last
+        days = uptime.days
+        hrs, rem = divmod(uptime.seconds, 3600)
+        mins, secs = divmod(rem, 60)
+        if days:
+            return f"{days} يوم، {hrs} ساعة"
+        if hrs:
+            return f"{hrs} ساعة، {mins} دقيقة"
+        return f"{mins} دقيقة، {secs} ثانية"
+    except Exception:
         return "غير متاح"
-    delta = datetime.now() - bot_start_time
-    days = delta.days
-    hours, rem = divmod(delta.seconds, 3600)
-    mins, secs = divmod(rem, 60)
-    if days:
-        return f"{days} يوم، {hours} ساعة"
-    if hours:
-        return f"{hours} ساعة، {mins} دقيقة"
-    return f"{mins} دقيقة، {secs} ثانية"
+
 
 if __name__ == "__main__":
-    logger.info("بدء تشغيل البوت مباشرة")
     if not start_bot_thread():
-        logger.error("تعذّر بدء بوت التيليجرام")
         sys.exit(1)
     try:
-        # إبقاء البرنامج الرئيسي قيد التشغيل
         while True:
             time.sleep(1)
     except KeyboardInterrupt:
-        logger.info("تم طلب الإيقاف من المستخدم")
         stop_bot_thread()
