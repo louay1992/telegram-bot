@@ -1746,7 +1746,7 @@ def build_application() -> Application:
     return application
 
 
-if name == "main":
+ if __name__ == '__main__':
     app = build_application()
     app.run_polling()
 
