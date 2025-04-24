@@ -50,20 +50,20 @@ application: Application = build_application()
 # تهيئة Webhook وتحديثات Telegram
 initialized_flag = False  # علم لضمان التهيئة مرة واحدة فقط
 
-async def init_webhook():
-    global initialized_flag
-    if not initialized_flag:
-        try:
-            await application.initialize()
-            initialized_flag = True
-            webhook_url = os.getenv("WEBHOOK_URL")
-            if webhook_url:
-                await application.bot.set_webhook(webhook_url)
-                logger.info(f"✅ Webhook تم تعيينه إلى: {webhook_url}")
-            else:
-                logger.warning("❌ لم يتم العثور على WEBHOOK_URL في المتغيرات البيئية.")
-        except Exception as e:
-            logger.error(f"❌ خطأ أثناء تهيئة الـ Webhook: {e}")
+import asyncio
+
+async def init_webhook_once():
+    webhook_url = os.getenv("WEBHOOK_URL")
+    if not webhook_url:
+        logger.warning("❌ لم يتم العثور على WEBHOOK_URL في المتغيرات البيئية.")
+        return
+    try:
+        await application.initialize()
+        await application.bot.set_webhook(webhook_url)
+        logger.info(f"✅ Webhook تم تعيينه إلى: {webhook_url}")
+    except Exception as e:
+        logger.error(f"❌ فشل في تعيين Webhook: {e}")
+
 
 @app.post("/webhook")
 async def handle_webhook():
@@ -435,8 +435,16 @@ def run_bot():
     bot.start_bot()
 
 if __name__ == "__main__":
-    # تهيئة الملفات والمجلدات وتشغيل البوت في الخلفية
+    # إنشاء loop جديدة لتعيين Webhook مرة واحدة
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(init_webhook_once())
+    loop.close()
+
+    # تشغيل السيرفر
     threading.Thread(target=init).start()
+    app.run(host='0.0.0.0', port=5000)
+    
 
     # تعيين Webhook داخل event loop الرئيسي
     async def startup():
