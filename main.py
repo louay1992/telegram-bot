@@ -13,10 +13,11 @@ from telegram.ext import Application
 from bot import build_application
 from telegram.ext import Application, CommandHandler, ContextTypes
 from telegram import Update
+from telegram import Update
+from telegram.ext import ContextTypes
 
-# تعريف دالة الرد على أمر /start
-async def start_command_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("مرحباً! تم تفعيل البوت بنجاح.")
+async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("مرحباً! أنا بوت NatureCare.")
 
 # دالة بناء التطبيق وإضافة الـ handlers
 
