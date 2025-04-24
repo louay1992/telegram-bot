@@ -21,7 +21,12 @@ async def start_command_handler(update: Update, context: ContextTypes.DEFAULT_TY
 # دالة بناء التطبيق وإضافة الـ handlers
 
 def build_application():
-    application = Application.builder().token(config.TELEGRAM_BOT_TOKEN).build()
+  from app_config import BOT_TOKEN  # هذا في بداية الملف
+
+def build_application():
+    application = Application.builder().token(BOT_TOKEN).build()
+    ...
+
 
     # إضافة الأمر /start
     application.add_handler(CommandHandler("start", start_handler))
