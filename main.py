@@ -24,7 +24,7 @@ def build_application():
     application = Application.builder().token(config.TELEGRAM_BOT_TOKEN).build()
 
     # إضافة الأمر /start
-    application.add_handler(CommandHandler("start", start_command_handler))
+    application.add_handler(CommandHandler("start", start_handler))
 
     # إضافة جميع الـ handlers المستوردة
     for handler in (
