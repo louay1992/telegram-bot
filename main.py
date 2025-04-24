@@ -44,6 +44,17 @@ from telegram.ext import Application
 from bot import build_application  # تأكد من استيراده بشكل صحيح
 
 application: Application = build_application()  # أنشئ التطبيق
+@app.before_first_request
+def setup_webhook():
+    webhook_url = os.getenv("WEBHOOK_URL")  # تأكد من تعيينه في بيئة Render
+    if not webhook_url:
+        logger.warning("❌ لم يتم العثور على WEBHOOK_URL في المتغيرات البيئية.")
+        return
+    try:
+        application.bot.set_webhook(webhook_url)
+        logger.info(f"✅ Webhook تم تعيينه إلى: {webhook_url}")
+    except Exception as e:
+        logger.error(f"❌ فشل في تعيين Webhook: {e}")
 
 @app.post("/webhook")
 async def handle_webhook():
