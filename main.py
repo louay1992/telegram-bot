@@ -1,16 +1,3 @@
-#!/usr/bin/env python
-"""
-ملف رئيسي موحد لتشغيل بوت تيليجرام مع خادم Flask في نظام واحد
---------------------------------------------------------------------
-تم إنشاء هذا الملف كنقطة دخول موحدة لجميع واجهات النظام بما في ذلك:
-- خادم Flask
-- بوت تيليجرام
-- نظام مراقبة نبضات القلب
-- واجهات API
-
-ملاحظة مهمة: يتم استيراد هذا الملف من قبل main_combined.py للتوافق مع كافة طرق التشغيل
-"""
-
 import os
 import sys
 import logging
@@ -18,40 +5,32 @@ import psutil
 import threading
 import time
 import asyncio
-from datetime import datetime, timedelta
-from flask import Flask, render_template, jsonify, request, send_from_directory, make_response
+from datetime import datetime
+from flask import Flask, render_template, jsonify, request, send_from_directory
 
-# استيراد التكوين
 from app_config import BOT_TOKEN, USE_ALWAYS_ON, FLASK_SECRET_KEY, setup_logging
+
+from telegram import Update
+from telegram.ext import Application
+from bot import build_application
 
 # إعداد السجلات
 logger = setup_logging()
 
-# قراءة توكن البوت
+# إنشاء التطبيق الأساسي
 TOKEN = BOT_TOKEN
-
 logger.info(f"USE_ALWAYS_ON = {USE_ALWAYS_ON}")
 logger.info(f"TELEGRAM_BOT_TOKEN = {TOKEN[:5]}...{TOKEN[-5:]}")
 
-# التأكد من وجود مجلد السجلات
 if not os.path.exists("logs"):
     os.makedirs("logs", exist_ok=True)
 
-# إنشاء تطبيق Flask
 app = Flask(__name__)
 app.secret_key = FLASK_SECRET_KEY
 
-from telegram import Update
-from telegram.ext import Application
-from bot import build_application  # تأكد من استيراده بشكل صحيح
-
 application: Application = build_application()
 
-# تهيئة Webhook وتحديثات Telegram
-initialized_flag = False  # علم لضمان التهيئة مرة واحدة فقط
-
-import asyncio
-
+# --- Webhook Setup ---
 async def init_webhook_once():
     webhook_url = os.getenv("WEBHOOK_URL")
     if not webhook_url:
@@ -64,35 +43,52 @@ async def init_webhook_once():
     except Exception as e:
         logger.error(f"❌ فشل في تعيين Webhook: {e}")
 
-
 @app.post("/webhook")
 async def handle_webhook():
+    if request.headers.get("Content-Type") == "application/json":
+        data = request.get_json(force=True)
+        update = Update.de_json(data, application.bot)
+        await application.process_update(update)
+    return "ok"
+
+# --- System Utilities ---
+visit_count = 0
+bot_start_time = None
+
+@app.route('/')
+def index():
+    global visit_count
+    visit_count += 1
+    return "Bot is running ✅", 200
+
+@app.route('/api/ping')
+def ping():
+    return jsonify({"status": "ok", "service": "telegram-bot", "timestamp": datetime.utcnow().isoformat() + "Z"})
+
+@app.route('/media/<path:filename>')
+def serve_media(filename):
+    media_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data/images')
+    return send_from_directory(media_folder, filename)
+
+def init():
+    os.makedirs('logs', exist_ok=True)
+    os.makedirs('data', exist_ok=True)
+    os.makedirs('temp_media', exist_ok=True)
+    os.makedirs('templates', exist_ok=True)
     try:
-        if request.headers.get("Content-Type") == "application/json":
-            data = request.get_json(force=True)
-            update = Update.de_json(data, application.bot)
-            if not initialized_flag:
-                await init_webhook()
-            await application.process_update(update)
-        return "ok"
+        with open("bot_heartbeat.txt", "w") as f:
+            f.write(datetime.now().isoformat())
     except Exception as e:
-        logger.error(f"❌ خطأ أثناء معالجة التحديث: {e}")
-        return "Error", 500
+        logger.error(f"❌ خطأ في إنشاء ملف نبضات القلب: {e}")
 
+if __name__ == "__main__":
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(init_webhook_once())
+    loop.close()
 
-async def init_webhook():
-    webhook_url = os.getenv("WEBHOOK_URL")
-    if not webhook_url:
-        logger.warning("❌ لم يتم العثور على WEBHOOK_URL في المتغيرات البيئية.")
-        return
-    try:
-        await application.initialize()
-        await application.bot.set_webhook(webhook_url)
-        logger.info(f"✅ Webhook تم تعيينه إلى: {webhook_url}")
-    except Exception as e:
-        logger.error(f"❌ فشل في تعيين Webhook: {e}")
-
-
+    threading.Thread(target=init).start()
+    app.run(host='0.0.0.0', port=5000)
 
 # متغيرات عامة
 visit_count = 0
@@ -434,12 +430,6 @@ def run_bot():
     # استخدام bot.py مباشرة بدلاً من custom_bot_adapter
     bot.start_bot()
 
-if __name__ == "__main__":
-    # إنشاء loop جديدة لتعيين Webhook مرة واحدة
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(init_webhook_once())
-    loop.close()
 
     # تشغيل السيرفر
     threading.Thread(target=init).start()
