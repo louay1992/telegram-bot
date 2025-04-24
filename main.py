@@ -40,8 +40,19 @@ if not os.path.exists("logs"):
 app = Flask(__name__)
 app.secret_key = FLASK_SECRET_KEY
 from telegram import Update
-from telegram.ext import ContextTypes
-from bot import build_application
+from telegram.ext import Application
+from bot import build_application  # تأكد من استيراده بشكل صحيح
+
+application: Application = build_application()  # أنشئ التطبيق
+
+@app.post("/webhook")
+async def handle_webhook():
+    if request.headers.get("Content-Type") == "application/json":
+        data = request.get_json(force=True)
+        update = Update.de_json(data, application.bot)
+        await application.process_update(update)
+    return "ok"
+
 
 # إعداد نسخة البوت للعمل مع Webhook
 telegram_app = build_application()
