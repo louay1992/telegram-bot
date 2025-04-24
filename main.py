@@ -7,12 +7,44 @@ import time
 import asyncio
 from datetime import datetime
 from flask import Flask, render_template, jsonify, request, send_from_directory
-
 from app_config import BOT_TOKEN, USE_ALWAYS_ON, FLASK_SECRET_KEY, setup_logging
-
 from telegram import Update
 from telegram.ext import Application
 from bot import build_application
+from telegram.ext import Application, CommandHandler, ContextTypes
+from telegram import Update
+
+# تعريف دالة الرد على أمر /start
+async def start_command_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("مرحباً! تم تفعيل البوت بنجاح.")
+
+# دالة بناء التطبيق وإضافة الـ handlers
+
+def build_application():
+    application = Application.builder().token(config.TELEGRAM_BOT_TOKEN).build()
+
+    # إضافة الأمر /start
+    application.add_handler(CommandHandler("start", start_command_handler))
+
+    # إضافة جميع الـ handlers المستوردة
+    for handler in (
+        get_admin_handlers(),
+        get_search_handlers(),
+        get_stats_handlers(),
+        get_delivery_handlers(),
+        get_search_history_handler(),
+        get_filter_handler(),
+        get_advanced_search_handler(),
+        get_permissions_handlers(),
+        get_theme_handlers(),
+        get_backup_handlers(),
+        get_personality_handlers(),
+        get_ai_handlers(),
+        get_marketing_campaign_handlers(),
+    ):
+        application.add_handlers(handler if isinstance(handler, list) else [handler])
+
+    return application
 
 # إعداد السجلات
 logger = setup_logging()
