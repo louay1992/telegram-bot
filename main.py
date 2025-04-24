@@ -45,13 +45,7 @@ from telegram import Update
 from telegram.ext import Application
 from bot import build_application  # تأكد من استيراده بشكل صحيح
 
-application: Application = build_application()  # أنشئ التطبيق
-
-@app.before_request
-def sync_webhook_setup():
-    if not hasattr(app, '_webhook_initialized'):
-        asyncio.get_event_loop().create_task(init_webhook())
-        app._webhook_initialized = True
+application: Application = build_application()
 
 async def init_webhook():
     webhook_url = os.getenv("WEBHOOK_URL")
@@ -65,15 +59,17 @@ async def init_webhook():
     except Exception as e:
         logger.error(f"❌ فشل في تعيين Webhook: {e}")
 
-@app.post("/webhook")
-async def handle_webhook():
-    if request.headers.get("Content-Type") == "application/json":
-        data = request.get_json(force=True)
-        update = Update.de_json(data, application.bot)
-        await application.process_update(update)
-    return "ok"
+@app.before_request
+def sync_webhook_setup():
+    if not application.initialized:
+        try:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            loop.run_until_complete(init_webhook())
+            loop.close()
+        except Exception as e:
+            logger.error(f"❌ خطأ أثناء تهيئة الـ webhook: {e}")
 
-# باقي الكود بدون تعديل ...
 
 # متغيرات عامة
 visit_count = 0
