@@ -47,17 +47,37 @@ from bot import build_application  # تأكد من استيراده بشكل ص�
 
 application: Application = build_application()
 
+# تهيئة Webhook وتحديثات Telegram
+initialized_flag = False  # علم لضمان التهيئة مرة واحدة فقط
+
 async def init_webhook():
-    webhook_url = os.getenv("WEBHOOK_URL")
-    if not webhook_url:
-        logger.warning("❌ لم يتم العثور على WEBHOOK_URL في المتغيرات البيئية.")
-        return
+    global initialized_flag
+    if not initialized_flag:
+        try:
+            await application.initialize()
+            initialized_flag = True
+            webhook_url = os.getenv("WEBHOOK_URL")
+            if webhook_url:
+                await application.bot.set_webhook(webhook_url)
+                logger.info(f"✅ Webhook تم تعيينه إلى: {webhook_url}")
+            else:
+                logger.warning("❌ لم يتم العثور على WEBHOOK_URL في المتغيرات البيئية.")
+        except Exception as e:
+            logger.error(f"❌ خطأ أثناء تهيئة الـ Webhook: {e}")
+
+@app.post("/webhook")
+async def handle_webhook():
     try:
-        await application.initialize()
-        await application.bot.set_webhook(webhook_url)
-        logger.info(f"✅ Webhook تم تعيينه إلى: {webhook_url}")
+        if request.headers.get("Content-Type") == "application/json":
+            data = request.get_json(force=True)
+            update = Update.de_json(data, application.bot)
+            if not initialized_flag:
+                await init_webhook()
+            await application.process_update(update)
+        return "ok"
     except Exception as e:
-        logger.error(f"❌ فشل في تعيين Webhook: {e}")
+        logger.error(f"❌ خطأ أثناء معالجة التحديث: {e}")
+        return "Error", 500
 
 
 
