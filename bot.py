@@ -15,6 +15,27 @@ from telegram.ext import (
     ContextTypes, filters
 )
 from telegram import error as telegram_error
+# الاستيرادات العامة
+import asyncio
+import config
+
+# استيراد من مكتبة تيليجرام
+from telegram.ext import ApplicationBuilder
+
+# استيراد كل الـ handlers
+from admin_handlers import get_admin_handlers
+from search_handlers import get_search_handlers
+from stats_handlers import get_stats_handlers
+from delivery_handlers import get_delivery_handlers
+from search_history_handlers import get_search_history_handler
+from filter_handlers import get_filter_handler
+from advanced_search_handlers import get_advanced_search_handler
+from permissions_handlers import get_permissions_handlers
+from theme_handlers import get_theme_handlers
+from backup_handlers import get_backup_handlers
+from personality_handlers import get_personality_handlers
+from ai_handlers import get_ai_handlers
+from marketing_campaign_handlers import get_marketing_campaign_handlers
 
 # استيراد نظام قفل المثيل
 from instance_lock import check_single_instance
@@ -36,6 +57,30 @@ from theme_handlers import get_theme_handlers
 from backup_handlers import get_backup_handlers
 from personality_handlers import get_personality_handlers
 from ai_handlers import get_ai_handlers  # إضافة معالجات الذكاء الاصطناعي
+def build_application():
+    application = ApplicationBuilder().token(config.TELEGRAM_BOT_TOKEN).build()
+
+    # قائمة جميع الـ Handlers
+    all_handlers = [
+        get_admin_handlers(),
+        get_search_handlers(),
+        get_stats_handlers(),
+        get_delivery_handlers(),
+        get_search_history_handler(),
+        get_filter_handler(),
+        get_advanced_search_handler(),
+        get_permissions_handlers(),
+        get_theme_handlers(),
+        get_backup_handlers(),
+        get_personality_handlers(),
+        get_ai_handlers(),
+        get_marketing_campaign_handlers(),
+    ]
+
+    for handler in all_handlers:
+        application.add_handlers(handler if isinstance(handler, list) else [handler])
+
+    return application
 
 # Function to create admin keyboard
 def create_admin_keyboard():
@@ -1757,49 +1802,7 @@ async def main():
 
 if __name__ == '__main__':
     asyncio.run(main())
-    from telegram.ext import ApplicationBuilder
-
-from admin_handlers import get_admin_handlers
-from search_handlers import get_search_handlers
-from stats_handlers import get_stats_handlers
-from delivery_handlers import get_delivery_handlers
-from search_history_handlers import get_search_history_handler
-from filter_handlers import get_filter_handler
-from advanced_search_handlers import get_advanced_search_handler
-from permissions_handlers import get_permissions_handlers
-from theme_handlers import get_theme_handlers
-from backup_handlers import get_backup_handlers
-from personality_handlers import get_personality_handlers
-from ai_handlers import get_ai_handlers
-from marketing_campaign_handlers import get_marketing_campaign_handlers
-
-import config
-
-
-def build_application():
-    application = ApplicationBuilder().token(config.TELEGRAM_BOT_TOKEN).build()
-
-    # قائمة جميع الـ Handlers
-    all_handlers = [
-        get_admin_handlers(),
-        get_search_handlers(),
-        get_stats_handlers(),
-        get_delivery_handlers(),
-        get_search_history_handler(),
-        get_filter_handler(),
-        get_advanced_search_handler(),
-        get_permissions_handlers(),
-        get_theme_handlers(),
-        get_backup_handlers(),
-        get_personality_handlers(),
-        get_ai_handlers(),
-        get_marketing_campaign_handlers(),
-    ]
-
-    for handler in all_handlers:
-        application.add_handlers(handler if isinstance(handler, list) else [handler])
-
-    return application
+   
 
 
 
