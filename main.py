@@ -12,10 +12,16 @@ from telegram import Update
 from telegram.ext import Application
 from bot import build_application
 from telegram.ext import Application, CommandHandler, ContextTypes
-from telegram import Update
+from telegram.ext import CommandHandler
+
+def get_admin_handlers():
+    return [
+        CommandHandler("admin", admin_dashboard_handler),
+        # أضف مزيد من Handlers حسب الحاجة
+    ]
+
 from telegram import Update
 from telegram.ext import ContextTypes
-
 async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("مرحباً! أنا بوت NatureCare.")
 
