@@ -1726,7 +1726,10 @@ def main():
     
     # Start the Bot
     logging.info("بدء تشغيل البوت...")
- # … (كل الكود الأصلي لديك من التعاريف، handlers، جدولة الـ jobs، heartbeat، إلخ) …
+# … (كل الكود الأصلي لديك من التعاريف، handlers، جدولة الـ jobs، heartbeat، إلخ) …
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("👋 أهلاً بك! أنا بوت NatureCare. استخدم الأزرار أو الأوامر للتنقل.")
 
 def build_application() -> Application:
     """
