@@ -39,6 +39,22 @@ if not os.path.exists("logs"):
 # إنشاء تطبيق Flask
 app = Flask(__name__)
 app.secret_key = FLASK_SECRET_KEY
+from telegram import Update
+from telegram.ext import ContextTypes
+from bot import build_application
+
+# إعداد نسخة البوت للعمل مع Webhook
+telegram_app = build_application()
+
+@app.route('/webhook', methods=['POST'])
+def webhook():
+    try:
+        update = Update.de_json(request.get_json(force=True), telegram_app.bot)
+        telegram_app.create_task(telegram_app.process_update(update))
+        return "OK", 200
+    except Exception as e:
+        logger.error(f"❌ خطأ في معالجة Webhook: {e}")
+        return "Error", 500
 
 # متغيرات عامة
 visit_count = 0
