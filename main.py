@@ -50,6 +50,9 @@ async def handle_webhook():
     if request.headers.get("Content-Type") == "application/json":
         data = request.get_json(force=True)
         update = Update.de_json(data, application.bot)
+        if not application.initialized:
+            await application.initialize()
+
         await application.process_update(update)
     return "ok"
 
