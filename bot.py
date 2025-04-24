@@ -1743,15 +1743,20 @@ def build_application() -> Application:
     
     return application
 
+import asyncio  # تأكد أنه موجود أعلى الملف
 
-def main():
-    """نقطة الدخول عند تشغيل bot.py مباشرةً."""
-    app = build_application()
-    logging.info("بدء تشغيل البوت…")
-    app.run_polling()
+async def main():
+    application = build_application()
+
+    await application.initialize()
+    await application.bot.set_webhook("https://telegram-bot-mie9.onrender.com/webhook")
+    await application.start()
+    print("✅ Webhook set and bot started successfully.")
+
 
 
 if __name__ == '__main__':
-    main()
+    asyncio.run(main())
+    
 
 
