@@ -59,16 +59,6 @@ async def init_webhook():
     except Exception as e:
         logger.error(f"❌ فشل في تعيين Webhook: {e}")
 
-@app.before_request
-def sync_webhook_setup():
-    if not application.initialized:
-        try:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            loop.run_until_complete(init_webhook())
-            loop.close()
-        except Exception as e:
-            logger.error(f"❌ خطأ أثناء تهيئة الـ webhook: {e}")
 
 
 # متغيرات عامة
@@ -412,5 +402,23 @@ def run_bot():
     bot.start_bot()
 
 if __name__ == "__main__":
-    threading.Thread(target=init).start()  # تشغيل البوت في Thread
-    app.run(host='0.0.0.0', port=5000)     # تشغيل السيرفر Flask في العملية الرئيسية
+    # تهيئة الملفات والمجلدات وتشغيل البوت في الخلفية
+    threading.Thread(target=init).start()
+
+    # تعيين Webhook داخل event loop الرئيسي
+    async def startup():
+        webhook_url = os.getenv("WEBHOOK_URL")
+        if not webhook_url:
+            logger.warning("❌ لم يتم العثور على WEBHOOK_URL في المتغيرات البيئية.")
+            return
+        try:
+            await application.initialize()
+            await application.bot.set_webhook(webhook_url)
+            logger.info(f"✅ Webhook تم تعيينه إلى: {webhook_url}")
+        except Exception as e:
+            logger.error(f"❌ فشل في تعيين Webhook: {e}")
+
+    asyncio.run(startup())
+
+    # تشغيل خادم Flask
+    app.run(host='0.0.0.0', port=5000)
