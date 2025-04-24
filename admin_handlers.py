@@ -1,9 +1,15 @@
 import logging
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
-from telegram.ext import (
-    ConversationHandler, CommandHandler, MessageHandler, CallbackQueryHandler,
-    ContextTypes, filters
-)
+from telegram import Update
+from telegram.ext import CommandHandler, ContextTypes
+
+async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("أهلاً بك في بوت NatureCare! 🌿")
+
+def get_admin_handlers():
+    return [
+        CommandHandler("start", start_command),
+        # باقي الـ handlers الخاصة بك
+    ]
 
 import database as db
 import strings as st
