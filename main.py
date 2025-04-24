@@ -80,6 +80,19 @@ async def handle_webhook():
         return "Error", 500
 
 
+async def init_webhook():
+    webhook_url = os.getenv("WEBHOOK_URL")
+    if not webhook_url:
+        logger.warning("❌ لم يتم العثور على WEBHOOK_URL في المتغيرات البيئية.")
+        return
+    try:
+        await application.initialize()
+        await application.bot.set_webhook(webhook_url)
+        logger.info(f"✅ Webhook تم تعيينه إلى: {webhook_url}")
+    except Exception as e:
+        logger.error(f"❌ فشل في تعيين Webhook: {e}")
+
+
 
 # متغيرات عامة
 visit_count = 0
