@@ -67,7 +67,9 @@ def _run_bot():
             application = bot.main()
 
         # 3) نُشغّل الـ polling داخل حلقة الـ asyncio
-        loop.create_task(application.run_polling())
+        # loop.create_task(application.run_polling())  # ❌ معطّل لأننا نستخدم Webhook الآن
+logger.info("📌 تم تعطيل polling، البوت يعمل باستخدام Webhook")
+
 
         # 4) نُدشّن جدولة نبضات القلب في ثريد منفصل
         def heartbeat_loop():
