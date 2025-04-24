@@ -17,6 +17,7 @@ import logging
 import psutil
 import threading
 import time
+import asyncio
 from datetime import datetime, timedelta
 from flask import Flask, render_template, jsonify, request, send_from_directory, make_response
 
@@ -39,35 +40,40 @@ if not os.path.exists("logs"):
 # إنشاء تطبيق Flask
 app = Flask(__name__)
 app.secret_key = FLASK_SECRET_KEY
+
 from telegram import Update
 from telegram.ext import Application
 from bot import build_application  # تأكد من استيراده بشكل صحيح
 
 application: Application = build_application()  # أنشئ التطبيق
-@app.before_first_request
-async def setup_webhook():
+
+@app.before_request
+def sync_webhook_setup():
+    if not hasattr(app, '_webhook_initialized'):
+        asyncio.get_event_loop().create_task(init_webhook())
+        app._webhook_initialized = True
+
+async def init_webhook():
     webhook_url = os.getenv("WEBHOOK_URL")
     if not webhook_url:
         logger.warning("❌ لم يتم العثور على WEBHOOK_URL في المتغيرات البيئية.")
         return
     try:
+        await application.initialize()
         await application.bot.set_webhook(webhook_url)
         logger.info(f"✅ Webhook تم تعيينه إلى: {webhook_url}")
     except Exception as e:
         logger.error(f"❌ فشل في تعيين Webhook: {e}")
-
 
 @app.post("/webhook")
 async def handle_webhook():
     if request.headers.get("Content-Type") == "application/json":
         data = request.get_json(force=True)
         update = Update.de_json(data, application.bot)
-        if not application.initialized:
-            await application.initialize()
-
         await application.process_update(update)
     return "ok"
 
+# باقي الكود بدون تعديل ...
 
 # متغيرات عامة
 visit_count = 0
